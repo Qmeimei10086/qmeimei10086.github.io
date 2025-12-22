@@ -92,5 +92,6 @@ page-mathjax: false
 # Friends
 friends:
   [
+      { title: "Mizuki's Blog", href:         "https://sol.edu.deal" }
     
   ]
