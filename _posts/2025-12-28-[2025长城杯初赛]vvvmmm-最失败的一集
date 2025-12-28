@@ -1,0 +1,658 @@
+---
+layout: post
+title: "逆向常见加密与解密总结"
+date:       2025-11-03
+author: "Qmeimei10086"
+header-style: text
+tags:
+  - CTF
+  - 逆向
+  - vm
+---
+
+# 前言
+也是荣幸当上长城杯陪跑的炮灰，看到这个出个vm尿吓出了两滴，赛后被提示是塞了unicorn，牛魔的你说的vm不自己写，塞个别人的引擎是吧，没用把符号表删了几个人知道是unicorn？难道你要逆向unicorn的代码，反推出逻辑？那你是高手，跪了orz 
+最后在赛后被提示几个用ai辅助一下出了  
+
+# 解题
+进去一个upx，直接upx -d脱了   
+用鸡神的lumina把符号全部恢复就看到好多unicorn的函数  
+start里有个函数，点进去就是主体了sub_401C60,长得有点恶心  
+![IDAcfg](https://github.com/Qmeimei10086/qmeimei10086.github.io/blob/main/img/2025-12-26-blog.png?raw=true "IDAcfg")
+f5看到switch，明显的控制流扁平化特征，我们直接对opcode进行恢复有点超纲了，我们直接hook几个块然后执行一下获取顺序吧
+先获取所有的块
+```python
+import ida_funcs
+import ida_gdl
+import ida_kernwin
+import idaapi
+
+def dump_bb_starts(func_ea=0x401C60, out_path=None):
+    f = ida_funcs.get_func(func_ea)
+    if not f:
+        raise RuntimeError("No function at 0x%X" % func_ea)
+
+    starts = []
+    fc = ida_gdl.FlowChart(f, flags=ida_gdl.FC_PREDS)  # 基本块图
+    for b in fc:
+        starts.append(b.start_ea)
+
+    starts = sorted(set(starts))
+
+    lines = [("0x%X" % ea) for ea in starts]
+    text = "\n".join(lines)
+
+    print("[sub_401C60] basic blocks:", len(starts))
+    print(text)
+
+    if out_path:
+        with open(out_path, "w", encoding="utf-8") as fp:
+            fp.write(text + "\n")
+        print("written to:", out_path)
+
+    # 方便你直接粘贴到 writeup
+    try:
+        ida_kernwin.set_clipboard_text(text)
+        print("copied to clipboard")
+    except Exception:
+        pass
+
+
+dump_bb_starts(0x401C60)
+
+#output
+block_list = [{"block_start":0x401C60,"block_end":0x401DD6},{"block_start":0x401DD8,"block_end":0x401DEF},{"block_start":0x401DF2,"block_end":0x401DFD},{"block_start":0x401E00,"block_end":0x401E0B},{"block_start":0x401E0E,"block_end":0x401E1C},{"block_start":0x401E1F,"block_end":0x401E36},{"block_start":0x401E39,"block_end":0x401E50},{"block_start":0x401E53,"block_end":0x401E6A},{"block_start":0x401E6D,"block_end":0x401E80},{"block_start":0x401E83,"block_end":0x401EA4},{"block_start":0x401EB0,"block_end":0x401EC7},{"block_start":0x401ECA,"block_end":0x401EE1},{"block_start":0x401EE4,"block_end":0x401EF7},{"block_start":0x401EFA,"block_end":0x401F21},{"block_start":0x401F30,"block_end":0x401F47},{"block_start":0x401F4A,"block_end":0x401F6C},{"block_start":0x401F70,"block_end":0x401F87},{"block_start":0x401F8A,"block_end":0x4021B2},{"block_start":0x4021B5,"block_end":0x4021CC},{"block_start":0x4021CF,"block_end":0x40704F},{"block_start":0x407052,"block_end":0x40706E}]
+```
+然后hook这些块，随便输入48字节，按住f9不松手，就可以得到执行顺序
+```python
+import glob
+import idaapi
+import ida_dbg
+import ida_bytes
+import idc
+
+block_list = [{"block_start":0x401C60,"block_end":0x401DD6},{"block_start":0x401DD8,"block_end":0x401DEF},{"block_start":0x401DF2,"block_end":0x401DFD},{"block_start":0x401E00,"block_end":0x401E0B},{"block_start":0x401E0E,"block_end":0x401E1C},{"block_start":0x401E1F,"block_end":0x401E36},{"block_start":0x401E39,"block_end":0x401E50},{"block_start":0x401E53,"block_end":0x401E6A},{"block_start":0x401E6D,"block_end":0x401E80},{"block_start":0x401E83,"block_end":0x401EA4},{"block_start":0x401EB0,"block_end":0x401EC7},{"block_start":0x401ECA,"block_end":0x401EE1},{"block_start":0x401EE4,"block_end":0x401EF7},{"block_start":0x401EFA,"block_end":0x401F21},{"block_start":0x401F30,"block_end":0x401F47},{"block_start":0x401F4A,"block_end":0x401F6C},{"block_start":0x401F70,"block_end":0x401F87},{"block_start":0x401F8A,"block_end":0x4021B2},{"block_start":0x4021B5,"block_end":0x4021CC},{"block_start":0x4021CF,"block_end":0x40704F},{"block_start":0x407052,"block_end":0x40706E}]
+index = 0
+
+class hook_all(ida_dbg.DBG_Hooks):
+
+    
+    def dbg_bpt(self, tid, ea):
+        global index
+        for block in block_list:
+            if ea == block['block_start']:
+                print(f'{index} : {hex(ea)}')
+                index += 1
+        
+        
+        
+        return 0
+def add_breakpoint():
+    for block in block_list:
+        addr = block['block_start']
+        ida_dbg.add_bpt(addr)
+        print(f"Breakpoint set at {hex(addr)}")
+
+def install_hook():
+    # 清理旧的 hook (如果存在于全局变量中)
+    global my_hook
+    try:
+        if 'my_hook' in globals():
+            my_hook.unhook()
+            print("Removed old hook")
+    except:
+        pass
+
+    # 安装新的 hook
+    my_hook = hook_all()
+    my_hook.hook()
+    print("Hook installed. Please set the breakpoint manually.")
+
+
+if __name__ == "__main__":
+    add_breakpoint()
+    install_hook()
+
+#output:
+''''
+[0x401e0e,
+0x401e1f,
+0x401e39,
+0x401f30,
+0x401f4a,   
+0x401e00,
+0x401e0e,
+0x401e1f,
+0x401e39,
+0x401e53,
+0x4021b5,
+0x4021cf,  
+0x401e00,
+0x401e0e,
+0x401e1f,
+0x401eb0,
+0x401f70,
+0x401f8a, 
+0x401e00,
+0x401e0e,
+0x401e1f,
+0x401e39,
+0x401e53,
+0x401e6d,
+0x401e83,
+0x401e00,
+0x401e0e,
+0x401e1f,
+0x401eb0,
+0x401eca,
+0x401dd8,
+0x407052   
+]
+'''
+```
+其实我们注意看，里面好多是子分发器，这是没用的
+```asm
+.text:00000000004021B5 xor     ecx, ecx        ; jumptable 0000000000401DFD case 5
+.text:00000000004021B5                         ; jumptable 0000000000401E0B case 5
+.text:00000000004021B5                         ; jumptable 0000000000401E1C case 5
+.text:00000000004021B5                         ; jumptable 0000000000401E6A case 1
+.text:00000000004021B5                         ; jumptable 0000000000401EA4 case 5
+.text:00000000004021B5                         ; jumptable 0000000000401F21 case 5
+.text:00000000004021B5                         ; jumptable 0000000000401F6C case 5
+.text:00000000004021B5                         ; jumptable 00000000004021B2 case 5
+.text:00000000004021B5                         ; jumptable 000000000040704F case 5
+.text:00000000004021B7 cmp     eax, 105F52AFh
+.text:00000000004021BC setz    cl
+.text:00000000004021BF mov     [rbp+var_14C], ecx
+.text:00000000004021C5 mov     rax, [rbp+var_100]
+.text:00000000004021CC jmp     (jpt_4021CC - 64CCC0h)[rax+rcx*8] ; switch 2 cases
+```
+最后真实块只有4个
+```python
+flow = [
+    0x401f4a,
+    0x4021cf,
+    0x401f8a,
+    0x407052
+]
+```
+其实不用看也能猜出来这个顺序。。。  
+最重要两个块  
+- 0x4021cf 解密opcode
+- 运行虚拟机
+
+我们动态到运行虚拟机的部分，这时候opcode已经解密了，可以直接提取出来  
+稍微恢复下 运行虚拟机的部分
+```c
+dword_68E7B0 = 1;
+    v70 = &v23[-64];
+    uc_engine = &v23[-16];
+    v55 = &v23[-16];
+    v56 = &v23[-16];
+    v57 = &v23[-16];
+    final_reg = &v23[-16];
+    IO_puts(&byte_64C980);    //print banner
+    _printf(&off_64C714, &byte_64C6ED, p_jpt_401F87_2, p_n222989985_2, v13, v14, v23[0]); 
+    v70[48] = 0;
+    _isoc99_scanf(&byte_64C68B, v70, v15, v16, v17, v18, v23[0]);     //get input
+    sub_4075E0(8, 8, uc_engine);
+    uc_mem_map(*uc_engine, 0, 4096, 7);
+    uc_mem_write(*uc_engine, 0, &byte_64C3F0, 662);   //这是会执行的汇编
+    uc_mem_map(*uc_engine, 1879048192, 0x10000, 7);
+    *v55 = 1879113472;
+    uc_reg_write(*uc_engine, 3, v55);
+    uc_mem_map(*uc_engine, 0x10000000, 4096, 7);
+    uc_mem_map(*uc_engine, 268439552, 4096, 7);
+    v19 = *uc_engine;
+    v20 = j_ifunc_542170(v70);
+    uc_mem_write(v19, 0x10000000, v70, v20);          //把我们输入的写入虚拟机内存
+    uc_mem_write(*uc_engine, 268439552, &byte_64C6C0, 32);    //写入一些计算时用的到的常量到内存
+    *v56 = 0x10000000;
+    *v57 = 268439552;
+    uc_reg_write(*uc_engine, 11, v56);
+    uc_reg_write(*uc_engine, 12, v57);
+    vm_run(*uc_engine, 0, 662, 2000000, 0);
+    uc_reg_read(*uc_engine, 11, final_reg);
+
+    p_n222989985_8 = *final_reg == 0;
+    n2096283220 = -1114784493;
+    if ( !*final_reg )
+        n2096283220 = 2096283220;
+    p_n222989985_1 = p_n222989985;
+    *p_n222989985 = n2096283220;
+    n222989985_1 = n19_3;
+    switch ( n19_3 )
+    ...
+```
+逻辑是:创建虚拟机，初始化内存，把输入写入内存，然后运行虚拟机，最后看某个寄存器的值，是否为0，如果不是就会跳转到0x407052也就是退出的部分，等于就会跳转到正确的逻辑
+
+偷看写字符串列表，可以看到一些risc-v的汇编代码，比如rotr_i32，基本可以断点是risc-v的的虚拟机
+这一步就可以丢ai，叫ai改写成py的unicorn
+首先用用capstone反汇编一下
+```asm
+0x0000: c.addi16sp sp, -0x60
+0x0002: c.sdsp   s0, 0x58(sp)
+0x0004: c.sdsp   s1, 0x50(sp)
+0x0006: c.sdsp   s2, 0x48(sp)
+0x0008: c.sdsp   s3, 0x40(sp)
+0x000A: c.sdsp   s4, 0x38(sp)
+0x000C: lbu      a2, 0(a1)
+0x0010: c.beqz   a2, 0x18
+0x0012: c.addi   a1, 1
+0x0014: c.li     a4, 1
+0x0016: sub      a3, a4, a2
+0x001A: lbu      a2, 0(a1)
+0x001E: c.slli   a4, 5
+0x0020: c.sub    a4, a3
+0x0022: c.addi   a1, 1
+0x0024: c.bnez   a2, -0xe
+0x0026: c.j      4
+0x0028: c.li     a4, 1
+0x002A: lui      a3, 0x1357a
+0x002E: srli     a2, a4, 0x10
+0x0032: c.addi4spn a1, sp, 8
+0x0034: c.addi   a0, 4
+0x0036: addi     a7, a3, -0x421
+0x003A: addi     a6, sp, 0x38
+0x003E: c.swsp   a7, 0x34(sp)
+0x0040: c.lwsp   a3, 0x34(sp)
+0x0042: c.lwsp   a5, 0x34(sp)
+0x0044: lwu      s0, 0x34(sp)
+0x0048: lwu      s2, 0x34(sp)
+0x004C: lwu      s1, 0x34(sp)
+0x0050: lwu      s4, 0x34(sp)
+0x0054: lwu      s3, 0x34(sp)
+0x0058: lwu      t6, 0x34(sp)
+0x005C: lwu      t5, 0x34(sp)
+0x0060: lwu      t4, 0x34(sp)
+0x0064: lwu      t3, 0x34(sp)
+0x0068: lwu      t2, 0x34(sp)
+0x006C: lwu      t1, 0x34(sp)
+0x0070: lwu      t0, 0x34(sp)
+0x0074: c.swsp   a7, 0x34(sp)
+0x0076: remuw    a2, a2, a3
+0x007A: c.lwsp   a3, 0x34(sp)
+0x007C: remuw    a3, a4, a3
+0x0080: remuw    a4, a2, a5
+0x0084: c.lwsp   a5, 0x34(sp)
+0x0086: remuw    a5, a3, a5
+0x008A: c.slli   a2, 0x20
+0x008C: c.slli   a4, 0x20
+0x008E: mulhu    a4, a4, a2
+0x0092: remu     a4, a4, s0
+0x0096: lwu      s0, 0x34(sp)
+0x009A: c.slli   a3, 0x20
+0x009C: c.slli   a5, 0x20
+0x009E: mulhu    a5, a5, a3
+0x00A2: remu     a5, a5, s0
+0x00A6: lwu      s0, 0x34(sp)
+0x00AA: c.srli   a2, 0x20
+0x00AC: mul      a4, a4, a2
+0x00B0: remu     a4, a4, s2
+0x00B4: c.srli   a3, 0x20
+0x00B6: mul      a5, a5, a3
+0x00BA: remu     a5, a5, s0
+0x00BE: lwu      s0, 0x34(sp)
+0x00C2: mul      a4, a4, a2
+0x00C6: remu     a4, a4, s1
+0x00CA: mul      a5, a5, a3
+0x00CE: remu     a5, a5, s0
+0x00D2: lwu      s0, 0x34(sp)
+0x00D6: mul      a4, a4, a2
+0x00DA: remu     a4, a4, s4
+0x00DE: mul      a5, a5, a3
+0x00E2: remu     a5, a5, s0
+0x00E6: lwu      s0, 0x34(sp)
+0x00EA: mul      a4, a4, a2
+0x00EE: remu     a4, a4, s3
+0x00F2: mul      a5, a5, a3
+0x00F6: remu     a5, a5, s0
+0x00FA: lwu      s0, 0x34(sp)
+0x00FE: mul      a4, a4, a2
+0x0102: remu     a4, a4, t6
+0x0106: mul      a5, a5, a3
+0x010A: remu     a5, a5, s0
+0x010E: lwu      s1, 0x34(sp)
+0x0112: mul      a4, a4, a2
+0x0116: remu     a4, a4, t5
+0x011A: mul      a5, a5, a3
+0x011E: remu     a5, a5, s1
+0x0122: lwu      s1, 0x34(sp)
+0x0126: mul      a4, a4, a2
+0x012A: remu     a4, a4, t4
+0x012E: mul      a5, a5, a3
+0x0132: remu     a5, a5, s1
+0x0136: lwu      s1, 0x34(sp)
+0x013A: mul      a4, a4, a2
+0x013E: remu     a4, a4, t3
+0x0142: mul      a5, a5, a3
+0x0146: remu     a5, a5, s1
+0x014A: lwu      s1, 0x34(sp)
+0x014E: mul      a4, a4, a2
+0x0152: remu     a4, a4, t2
+0x0156: mul      a5, a5, a3
+0x015A: remu     a5, a5, s1
+0x015E: lwu      s1, 0x34(sp)
+0x0162: mul      a4, a4, a2
+0x0166: remu     a4, a4, t1
+0x016A: mul      a5, a5, a3
+0x016E: remu     a5, a5, s1
+0x0172: lwu      s1, 0x34(sp)
+0x0176: mul      a2, a4, a2
+0x017A: remu     a2, a2, t0
+0x017E: mul      a3, a5, a3
+0x0182: remu     a4, a3, s1
+0x0186: lw       a3, -4(a0)
+0x018A: c.lw     a5, 0(a0)
+0x018C: c.xor    a3, a2
+0x018E: c.xor    a5, a4
+0x0190: sw       a3, -4(a1)
+0x0194: c.sw     a5, 0(a1)
+0x0196: c.addi   a1, 8
+0x0198: c.addi   a0, 8
+0x019A: bne      a1, a6, -0x15c
+0x019E: lui      a0, 0x45035
+0x01A2: lui      a1, 0x53476
+0x01A6: lui      a6, 0x44b37
+0x01AA: c.lwsp   a3, 4(sp)
+0x01AC: c.lwsp   a4, 8(sp)
+0x01AE: c.lwsp   a5, 0xc(sp)
+0x01B0: c.lwsp   s1, 0x10(sp)
+0x01B2: lui      t0, 0x44c3f
+0x01B6: lui      a7, 0x79bb6
+0x01BA: lui      t1, 0x42a1e
+0x01BE: lui      t2, 0x3edb8
+0x01C2: addi     a0, a0, -0x9d
+0x01C6: addi     a1, a1, 0x2d2
+0x01CA: xor      t3, a3, a0
+0x01CE: xor      t4, a4, a1
+0x01D2: c.lwsp   a3, 0x14(sp)
+0x01D4: c.lwsp   a4, 0x18(sp)
+0x01D6: c.lwsp   a2, 0x1c(sp)
+0x01D8: c.lwsp   s0, 0x20(sp)
+0x01DA: addi     a0, a6, -0x2fc
+0x01DE: xor      t5, a5, a0
+0x01E2: lui      a5, 0x30e15
+0x01E6: addi     a1, t0, -0x296
+0x01EA: xor      t0, s1, a1
+0x01EE: lui      a6, 0x4d3ac
+0x01F2: addi     s1, a7, 0xb0
+0x01F6: addi     a0, t1, 0x767
+0x01FA: addi     a1, t2, -0x194
+0x01FE: addi     a5, a5, 0x51d
+0x0202: xor      t2, a3, s1
+0x0206: xor      t1, a4, a0
+0x020A: xor      a7, a2, a1
+0x020E: xor      t6, s0, a5
+0x0212: c.lwsp   a2, 0x24(sp)
+0x0214: c.lwsp   a4, 0x28(sp)
+0x0216: c.lwsp   s1, 0x2c(sp)
+0x0218: c.lwsp   s0, 0x30(sp)
+0x021A: addi     a1, a6, -0x55c
+0x021E: c.xor    a1, a2
+0x0220: lui      a2, 0x6aa2a
+0x0224: addi     a2, a2, -0x6b8
+0x0228: c.xor    a2, a4
+0x022A: lui      a4, 0x51ce9
+0x022E: addi     a4, a4, -0x7b9
+0x0232: c.xor    a4, s1
+0x0234: lui      s1, 0x51624
+0x0238: addi     s1, s1, -0x51
+0x023C: c.xor    s0, s1
+0x023E: seqz     s1, t3
+0x0242: seqz     a0, t4
+0x0246: c.add    a0, s1
+0x0248: seqz     s1, t5
+0x024C: seqz     a3, t0
+0x0250: c.add    a3, s1
+0x0252: seqz     s1, t2
+0x0256: seqz     a5, t1
+0x025A: c.add    a5, s1
+0x025C: seqz     s1, t6
+0x0260: seqz     a1, a1
+0x0264: c.add    a1, s1
+0x0266: c.add    a0, a3
+0x0268: seqz     a3, a7
+0x026C: c.add    a3, a5
+0x026E: seqz     a2, a2
+0x0272: c.add    a1, a2
+0x0274: c.add    a0, a3
+0x0276: seqz     a2, a4
+0x027A: c.add    a1, a2
+0x027C: c.add    a0, a1
+0x027E: seqz     a1, s0
+0x0282: c.addw   a0, a1
+0x0284: c.addi   a0, -0xc
+0x0286: seqz     a0, a0
+0x028A: c.ldsp   s0, 0x58(sp)
+0x028C: c.ldsp   s1, 0x50(sp)
+0x028E: c.ldsp   s2, 0x48(sp)
+0x0290: c.ldsp   s3, 0x40(sp)
+0x0292: c.ldsp   s4, 0x38(sp)
+0x0294: c.addi16sp sp, 0x60
+
+[stats] parsed_bytes=2674 code_size=662 loads(a0)=1 loads(a1)=2 stores=1 branches=1 calls=0
+
+```
+
+逻辑很简单
+- 用 key（byte_64C6C0 那 32 字节 + 后面的 0 终止）生成一组 48 字节的 XOR 掩码(mask)（可看作“解密/加密流”）；  
+- 对输入 48 字节（12 个 little-endian dword）做 out[i] = in[i] XOR mask[i]；  
+- 把 out[0..11] 逐个跟 固定常量比对，全相等则返回 A0=1，否则 A0=0。  
+
+改写的py脚本
+```python
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from ida_db_dump import build_blob, parse_ida_db_dump
+
+
+def _parse_hex_int(s: str) -> int:
+    s = s.strip().lower()
+    if s.startswith("0x"):
+        return int(s, 16)
+    return int(s, 10)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Re-run the embedded Unicorn VM from opcode_dump")
+    ap.add_argument("--dump", default="opcode_dump", help="path to opcode_dump text")
+    ap.add_argument(
+        "--input",
+        default="",
+        help="ASCII input string (will be written to 0x10000000, like the binary)",
+    )
+    ap.add_argument(
+        "--arch",
+        default="riscv",
+        choices=["riscv"],
+        help="unicorn arch to use (based on uc_open(8,8) this should be RISCV)",
+    )
+    ap.add_argument(
+        "--mode",
+        default="64",
+        choices=["32", "64"],
+        help="riscv mode (IDA decompile shows uc_open(8,8); in practice this matches RISCV64)",
+    )
+    ap.add_argument("--trace", action="store_true", help="trace a few instructions")
+    ap.add_argument("--trace-count", type=int, default=200, help="max traced instructions")
+    args = ap.parse_args()
+
+    # Layout recovered from decompile around 0x401F8A
+    CODE_SRC_ADDR = 0x64C3F0
+    CODE_SIZE = 662  # 0x296
+    KEY_SRC_ADDR = 0x64C6C0
+    KEY_SIZE = 32
+
+    CODE_DST_ADDR = 0x0
+    STACK_BASE = 0x70000000
+    STACK_SIZE = 0x10000
+    STACK_INIT = 0x7000FF00
+
+    INPUT_ADDR = 0x10000000
+    INPUT_MAP_SIZE = 0x1000
+    KEY_ADDR = 0x10001000
+    KEY_MAP_SIZE = 0x1000
+
+    # Register IDs are used as raw integers in the binary: uc_reg_write(engine, 3/11/12, &val)
+    REG_STACK = 3
+    REG_ARG1 = 11
+    REG_ARG2 = 12
+
+    mapping, stats = parse_ida_db_dump(args.dump)
+    code = build_blob(mapping, CODE_SRC_ADDR, CODE_SIZE)
+    key = build_blob(mapping, KEY_SRC_ADDR, KEY_SIZE)
+
+    try:
+        from unicorn import Uc, UcError
+        from unicorn import UC_ARCH_RISCV
+        from unicorn import UC_PROT_ALL
+        from unicorn import UC_MODE_RISCV32, UC_MODE_RISCV64
+        from unicorn import UC_HOOK_CODE
+    except Exception as e:  # pragma: no cover
+        raise SystemExit(
+            "Python unicorn 未安装。\n"
+            "在当前环境执行：pip install unicorn\n"
+            f"原始错误: {e}"
+        )
+
+    mode = UC_MODE_RISCV32 if args.mode == "32" else UC_MODE_RISCV64
+    uc = Uc(UC_ARCH_RISCV, mode)
+
+    # Map memory
+    uc.mem_map(0x0, 0x1000, UC_PROT_ALL)
+    uc.mem_write(CODE_DST_ADDR, code)
+
+    uc.mem_map(STACK_BASE, STACK_SIZE, UC_PROT_ALL)
+    uc.mem_map(INPUT_ADDR, INPUT_MAP_SIZE, UC_PROT_ALL)
+    uc.mem_map(KEY_ADDR, KEY_MAP_SIZE, UC_PROT_ALL)
+
+    # Seed data
+    user_bytes = args.input.encode("ascii", errors="ignore")
+    if len(user_bytes) > 48:
+        user_bytes = user_bytes[:48]
+    uc.mem_write(INPUT_ADDR, user_bytes + b"\x00")
+    uc.mem_write(KEY_ADDR, key)
+
+    # Set regs (match the binary: raw numeric IDs)
+    uc.reg_write(REG_STACK, STACK_INIT)
+    uc.reg_write(REG_ARG1, INPUT_ADDR)
+    uc.reg_write(REG_ARG2, KEY_ADDR)
+
+    if args.trace:
+        state = {"n": 0}
+
+        def _hook_code(_uc, address, size, _user):
+            n = state["n"]
+            if n < args.trace_count:
+                print(f"[trace] pc=0x{address:X} size={size}")
+            state["n"] = n + 1
+
+        uc.hook_add(UC_HOOK_CODE, _hook_code)
+
+    # vm_run(engine, begin=0, until=662, timeout=2000000, count=0)
+    try:
+        uc.emu_start(0x0, CODE_SIZE, timeout=2_000_000, count=0)
+    except UcError as e:
+        print(f"[emu] stopped with error: {e}")
+
+    r11 = uc.reg_read(REG_ARG1)
+    print(f"[result] reg11(A0) = 0x{r11:X}")
+    if r11 != 0:
+        print("[result] looks like SUCCESS path (binary checks reg11!=0)")
+    else:
+        print("[result] looks like FAIL path (binary checks reg11!=0)")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+```
+根据xor的特点，我们如果输入全是0，栈上得到的就是mask  
+```text
+0x104d0e05, 0x0b773197, 0x06eb3870, 0x0ba1a82e, 0x18f13e8, 0x06f98421, 0x0b8a4d0e, 0x08b41876, 0x0160d893, 0x0ce8c305, 0x12a0da32, 0x091559d9
+```
+
+至于密文，得到的方式好多，直接分析分析dump的数据也行，用unicorn hook那几个对比地址把对比的值输出也行也行  
+最后脚本  
+```python
+from __future__ import annotations
+
+import struct
+
+
+def u32(x: int) -> int:
+    return x & 0xFFFFFFFF
+
+
+# 来自前面提取到的数据：
+# mask_u32：VM 在输入全 0 时生成/写出的 12 个 dword（小端）
+MASK_U32 = [
+    0x104D0E05,
+    0x0B773197,
+    0x06EB3870,
+    0x0BA1A82E,
+    0x018F13E8,
+    0x06F98421,
+    0x0B8A4D0E,
+    0x08B41876,
+    0x0160D893,
+    0x0CE8C305,
+    0x12A0DA32,
+    0x091559D9,
+]
+
+# expected_u32：RISC-V 校验阶段硬编码的 12 个目标常量（小端 dword）
+EXPECTED_U32 = [
+    0x45034F63,
+    0x534762D2,
+    0x44B36D04,
+    0x44C3ED6A,
+    0x79BB60B0,
+    0x42A1E767,
+    0x3EDB7E6C,
+    0x30E1551D,
+    0x4D3ABAA4,
+    0x6AA29948,
+    0x51CE8847,
+    0x51623FAF,
+]
+
+
+def derive_input_bytes() -> bytes:
+    if len(MASK_U32) != 12 or len(EXPECTED_U32) != 12:
+        raise ValueError("MASK_U32/EXPECTED_U32 must be 12 dwords each")
+
+    inp_u32 = [u32(m ^ e) for m, e in zip(MASK_U32, EXPECTED_U32)]
+    return struct.pack("<12I", *inp_u32)
+
+
+def main() -> int:
+    b = derive_input_bytes()
+
+    try:
+        s = b.decode("ascii")
+    except UnicodeDecodeError:
+        # 如果不是纯可打印 ASCII，就用 \x?? 形式展示
+        s = "".join(chr(x) if 32 <= x < 127 else f"\\x{x:02x}" for x in b)
+
+    print("[input-bytes-hex]", b.hex())
+    print("[flag-body]", s)
+    print("[flag]", f"flag{{{s}}}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+```
+
+# 后记
+就喜欢这种加密简单的逆向  
+唉，要是早点知道是unicorn就好了。。。  
+这次也是有点遗憾，我还是太菜了。。。没ai我和区一样  
