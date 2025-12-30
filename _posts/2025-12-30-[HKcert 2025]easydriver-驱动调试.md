@@ -211,9 +211,9 @@ void decrypt(DWORD *data)
     d1 = data[0];
     d2 = data[1];
 
-    DWORD Sum = Delta * 0xff;
+    DWORD Sum = Delta * 0x257;
 
-    for (int i = 0; i < 0xff; i++)
+    for (int i = 0; i < 0x257; i++)
     {
         DWORD tmp1{}, tmp2{}, tmp3{};
 
@@ -236,14 +236,13 @@ void decrypt(DWORD *data)
 
 int main()
 {
-    DWORD Enc[]{0x4280669b, 0xd6dfe6bb, 0x56855b5c, 0xc995079b, 0x39e0ba30, 0xbbe402f0, 0x3a9df08b, 0x4dd5f7db, 0x23767dfa, 0x74c33a7f, 0x736805af, 0xff396149};
-
-    for (int i = 0; i < 6; i++)
+    DWORD Enc[]{0x2a90bfd5, 0xaa53b7ef, 0xfc23b031, 0xdd985d10, 0xff5ceea4, 0x0ade98c1, 0xc5bb1dd3, 0x60a3d0cc, 0xc02fcca9, 0xdd9f252b, 0x9750cd50, 0x808a76e5};
+    for (int i = 0; i < 8; i++)
     {
         decrypt((DWORD *)((BYTE *)Enc + i * 8));
     }
-
-    printf("%.48s\n", Enc);
+    printf("flag{%.48s}\n", Enc);
+    // flag{C3A1F8E0B9D24765A9C0E1B4F3D687029514A3E8B6D7C2F0}
     return 0;
 }
 ```
