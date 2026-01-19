@@ -20,11 +20,11 @@ ollvm一直是程序保护中的一种强有力的手段，将原本的控制流
 第一步我们就是要找出所有的代码，也就是真实块，我们可以根据一套固定流程来确定寻找  
 先祭出老生常谈的一张图  
 ![ollvm](https://github.com/Qmeimei10086/qmeimei10086.github.io/blob/main/img/2026-1-19-blog.png?raw=true "ollvm")
-1. 找到循环头  
+1. 找到循环头   
 ```text
 A -> B -> C -> D -> B
 ```
-假如说又回到了B，那么B就是循环头，我们根据BFS算法可以找出来
+假如说又回到了B，那么B就是循环头，我们根据BFS算法可以找出来  
 
 ```python
 # ida python
@@ -47,10 +47,10 @@ def find_loop_head(start_ea):
     return all_loop_heads
 ```
 循环头有两个前驱，一个是序言，用与开辟栈空间，初始化变量之类的，一个是汇聚块  
-怎么判断哪个是汇聚块呢？汇聚块有很多前驱，而哪些前驱就是我们最关心的————真实快  
+怎么判断哪个是汇聚块呢？汇聚块有很多前驱，而哪些前驱就是我们最关心的————真实快   
 ps:其实序言也是真实块之一，别忘了（  
 
-1. 找出循环头
+1. 找出循环头  
 ```python
 def find_converge_addr(loop_head_addr):
     converge_addr = 0
@@ -67,7 +67,7 @@ def find_converge_addr(loop_head_addr):
     return converge_addr
 ```
 2. 找出汇聚块  
-那不是汇聚块就是序言了呗
+那不是汇聚块就是序言了呗  
 ```python
     for loop_head_addr in loop_heads:
         loop_head_block = get_basic_block(loop_head_addr)
@@ -83,7 +83,7 @@ def find_converge_addr(loop_head_addr):
             print("序言块:",[hex(x) for x in loop_head_preds_addr])
 ```
 3. 找出ret块  
-这个简单，没后继的就是ret块
+这个简单，没后继的就是ret块  
 ```python
 def find_ret_block(blocks):
     for block in blocks:
@@ -133,7 +133,7 @@ def find_ret_block(blocks):
                 return block.start_ea
 # 这里是是考虑了可能ret块有前驱，保险起见算一起，可以不用这么多，当然这个代码你直接抄去就行，你可以先自己观察一下哦，有时候自己找ret块也行
 ```
-4. 找出真实块
+4. 找出真实块  
 ```python
 def find_all_real_blocks(fun_ea):
     blocks = idaapi.FlowChart(idaapi.get_func(fun_ea))
@@ -207,7 +207,7 @@ all_real_blocks: [[4195872, 4198689, 4198808, 4198878, 4198991, 4199006, 4199076
 ```
 ## 获取执行循序
 这就到了本文最精髓的地方了，我们要找到每个块的后继    
-对于每一个真实块，我们遵循一套这样的法则  
+对于每一个真实块，我们遵循一套这样的法则   
 序言执 -> 主分发器 -> 直接跳到我们要的真实块 -> 继续执行看会到哪一个块  
 重点:  
 1. 必须先执行序言，这是初始化，执行开栈等操作   
@@ -236,8 +236,8 @@ cmovnz  ecx, eax
 mov     [rbp+var_114], ecx
 jmp     loc_4020CC
 ```  
-cmovxx通过修改寄存器的值，影响上面分发器的分发，达到不同的块
-但是我们angr遇到不会cmovxx这些汇编分裂出两个分支，而是通过积累一个约束实现，所以我们要手动分裂两个状态，一个执行这条，一个不执行，就会到达两不同的块，然后我们这样储存
+cmovxx通过修改寄存器的值，影响上面分发器的分发，达到不同的块  
+但是我们angr遇到不会cmovxx这些汇编分裂出两个分支，而是通过积累一个约束实现，所以我们要手动分裂两个状态，一个执行这条，一个不执行，就会到达两不同的块，然后我们这样储存  
 ```python
 {'0xaaaa':['0xbbb','0xccc']} 
 ```
@@ -436,7 +436,7 @@ all_real_blocks: list[int] =[4195872, 4198689, 4198808, 4198878, 4198991, 419900
 angr_main(all_real_blocks, 0x400620, "D:\\reverse\\Angr\\polyre")
 ```
 
-几个关键点
+几个关键点  
 ```python
 def jump_to_address(state):
     #print(state.regs.pc)
@@ -447,8 +447,8 @@ def jump_to_address(state):
 ```
 
 我们通过hook主分发器的最后一个指令，运行到直接跳到我们要的块，然后记得unhook，不然到时候执行回来又跳到那里去了，就循环了  
-为什么要 -6，我只能说理论上应该不用加偏移，但是实际上不加的化angr不能正确的识别指令，capstone解码出来的混乱的，这个-6是我摸索出来的，如果不行你们可以试试别的，记得把汇编输出出来对一下就行（我把它注释了）  
-运行结果
+为什么要 -6，我只能说理论上应该不用加偏移，但是实际上不加的化angr不能正确的识别指令，capstone解码出来的混乱的，这个-6是我摸索出来的，如果不行你们可以试试别的，记得把汇编输出出来对一下就行（我把它注释了）   
+运行结果  
 ```python
 0x400620:  ['0x401121']
 0x401121:  ['0x401198']
@@ -552,11 +552,11 @@ def jump_to_address(state):
 0x401f54:  []
 ```
 # patch
-1. 假如只有一个后继的，我们直接把最后一条指令patch为
+1. 假如只有一个后继的，我们直接把最后一条指令patch为  
 ```asm
 jmp 后继地址
 ```
-2. 假如有双后继，根据我们前面说的，列表左边是zf=1，右边是zf=0，从cmovxx开始，patch为
+2. 假如有双后继，根据我们前面说的，列表左边是zf=1，右边是zf=0，从cmovxx开始，patch为  
 ```asm
 jz 列表左侧地址
 jmp 列表右侧地址
@@ -678,8 +678,8 @@ ida_funcs.reanalyze_function(ida_funcs.get_func(func_ea))#刷新函数控制流�
 print("控制流图已刷新")
 ```
 
-这里一个小细节,我们先找出所有的无用块列表，得到开始地址与结束地址，然后在进行控制流的patch，最后根据前面获取的无用块列表，nop无用块，如果先patch控制流在寻找无用块，找出来的无用块是错误的   
-恢复完的到代码  
+这里一个小细节,我们先找出所有的无用块列表，得到开始地址与结束地址，然后在进行控制流的patch，最后根据前面获取的无用块列表，nop无用块，如果先patch控制流在寻找无用块，找出来的无用块是错误的    
+恢复完的到代码   
 
 
 ```c
@@ -783,9 +783,9 @@ __int64 __fastcall main(int a1, char **a2, char **a3)
   return v10;
 }
 ```
-然后交给ai大人就行，不过有些知识点我mark一下  
-这里的的算法先判断正负，然后执行不同的操作，这似乎有点根据不可逆，我们无法判断我们该选择哪个操作，后面ai告诉我可以通过判断最后一位得到
-贴上对话
+然后交给ai大人就行，不过有些知识点我mark一下    
+这里的的算法先判断正负，然后执行不同的操作，这似乎有点根据不可逆，我们无法判断我们该选择哪个操作，后面ai告诉我可以通过判断最后一位得到  
+贴上对话  
 ```text
 逆向这个算法的关键在于利用二进制的位运算特性。这是一种典型的 LFSR（线性反馈移位寄存器）或者有限域算术的变形。
 
@@ -820,7 +820,7 @@ for _ in range(64):
     else:         # 最低位是 0，说明只是左移
         curr = curr >> 1
 ```
-官方的解释是
+官方的解释是   
 ```text
 
 我更换了标准CRC64中的特征多项式，使没那么容易发现CRC64，需要选手查询相关资料。
@@ -832,9 +832,9 @@ CRC一般用作校验，效果类似哈希，正常来说是无法求逆的。�
 可以搜索到一个工具，CRC RevEng，它可以用来计算CRC的逆。需要查看该工具的帮助文档学习使用
 
 完整看https://www.nssctf.cn/note/set/12023
-```
-什么是crc64，不懂喵，mark一下以后学。。。。。
-最后exp:
+``` 
+什么是crc64，不懂喵，mark一下以后学。。。。。   
+最后exp:    
 ```python
 import struct
 
@@ -882,6 +882,6 @@ except:
 #flag{6ff29390-6c20-4c56-ba70-a95758e3d1f8}
 ```
 # 后记
-这次是源于b站水番正文的分享会里的内容，本来视频看了好几遍，ppt也看了，以为都会了，结果实际写下来还是遇到一堆问题，也学了不少。。。  
-这就是纸上得来终觉浅，绝知此事要躬行罢（  
-分享会：https://www.bilibili.com/video/BV17hBQBqEda
+这次是源于b站水番正文的分享会里的内容，本来视频看了好几遍，ppt也看了，以为都会了，结果实际写下来还是遇到一堆问题，也学了不少。。。    
+这就是纸上得来终觉浅，绝知此事要躬行罢（   
+分享会：https://www.bilibili.com/video/BV17hBQBqEda  
