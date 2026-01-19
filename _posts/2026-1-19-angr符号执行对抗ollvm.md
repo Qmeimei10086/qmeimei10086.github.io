@@ -134,6 +134,7 @@ def find_ret_block(blocks):
 # 这里是是考虑了可能ret块有前驱，保险起见算一起，可以不用这么多，当然这个代码你直接抄去就行，你可以先自己观察一下哦，有时候自己找ret块也行
 ```
 4. 找出真实块  
+
 ```python
 def find_all_real_blocks(fun_ea):
     blocks = idaapi.FlowChart(idaapi.get_func(fun_ea))
