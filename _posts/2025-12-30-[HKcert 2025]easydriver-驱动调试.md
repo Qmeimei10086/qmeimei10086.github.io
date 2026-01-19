@@ -241,7 +241,7 @@ int main()
     {
         decrypt((DWORD *)((BYTE *)Enc + i * 8));
     }
-    printf("flag{%.48s}\n", Enc);
+    {% raw %}printf("flag{%.48s}\n", Enc);{% endraw %}
     // flag{C3A1F8E0B9D24765A9C0E1B4F3D687029514A3E8B6D7C2F0}
     return 0;
 }
