@@ -25,6 +25,7 @@ ollvm一直是程序保护中的一种强有力的手段，将原本的控制流
 A -> B -> C -> D -> B
 ```
 假如说又回到了B，那么B就是循环头，我们根据BFS算法可以找出来
+
 ```python
 # ida python
 def find_loop_head(start_ea):
@@ -191,6 +192,7 @@ def find_all_real_blocks(fun_ea):
     print(all_real_block_list)
 
 ```
+
 这里也是考虑了多循环头的情况，可以自己看情况改  
 我们以[RoarCTF 2019]polyre 为例子，附件和所有脚本我都放github上了  
 https://github.com/Qmeimei10086/deflat-angr  
@@ -432,6 +434,7 @@ all_real_blocks: list[int] =[4195872, 4198689, 4198808, 4198878, 4198991, 419900
 
 angr_main(all_real_blocks, 0x400620, "D:\\reverse\\Angr\\polyre")
 ```
+
 几个关键点
 ```python
 def jump_to_address(state):
@@ -441,6 +444,7 @@ def jump_to_address(state):
     print("跳转到地址:", hex(base + real_block_addr - 6))
     proj.unhook(0x400675)
 ```
+
 我们通过hook主分发器的最后一个指令，运行到直接跳到我们要的块，然后记得unhook，不然到时候执行回来又跳到那里去了，就循环了  
 为什么要 -6，我只能说理论上应该不用加偏移，但是实际上不加的化angr不能正确的识别指令，capstone解码出来的混乱的，这个-6是我摸索出来的，如果不行你们可以试试别的，记得把汇编输出出来对一下就行（我把它注释了）  
 运行结果
@@ -548,16 +552,18 @@ def jump_to_address(state):
 ```
 # patch
 1. 假如只有一个后继的，我们直接把最后一条指令patch为
-```
+```asm
 jmp 后继地址
 ```
 2. 假如有双后继，根据我们前面说的，左边是zf=1，从cmovxx开始，patch为
-```
+```asm
 jz 列表左侧地址
 jmp 列表右侧地址
 ```
+
 剩下的地方用nop填充  
 然后再后面把没用到的块给nop了  
+
 ```python
 from collections import deque
 
@@ -670,8 +676,11 @@ patch_useless_blocks(useless_blocks)
 ida_funcs.reanalyze_function(ida_funcs.get_func(func_ea))#刷新函数控制流图
 print("控制流图已刷新")
 ```
+
 这里一个小细节,我们先找出所有的无用块列表，得到开始地址与结束地址，然后在进行控制流的patch，最后根据前面获取的无用块列表，nop无用块，如果先patch控制流在寻找无用块，找出来的无用块是错误的   
 恢复完的到代码  
+
+
 ```c
 __int64 __fastcall main(int a1, char **a2, char **a3)
 {
