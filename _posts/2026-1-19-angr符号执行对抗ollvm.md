@@ -556,7 +556,7 @@ def jump_to_address(state):
 ```asm
 jmp 后继地址
 ```
-2. 假如有双后继，根据我们前面说的，左边是zf=1，从cmovxx开始，patch为
+2. 假如有双后继，根据我们前面说的，列表左边是zf=1，右边是zf=0，从cmovxx开始，patch为
 ```asm
 jz 列表左侧地址
 jmp 列表右侧地址
@@ -881,7 +881,7 @@ except:
 
 #flag{6ff29390-6c20-4c56-ba70-a95758e3d1f8}
 ```
-# 后继
+# 后记
 这次是源于b站水番正文的分享会里的内容，本来视频看了好几遍，ppt也看了，以为都会了，结果实际写下来还是遇到一堆问题，也学了不少。。。  
 这就是纸上得来终觉浅，绝知此事要躬行罢（  
 分享会：https://www.bilibili.com/video/BV17hBQBqEda
