@@ -845,7 +845,7 @@ def main():
     patch_jg = {k: cond_successors[k] for k, m in cond_mnemonic.items() if m in mnem_jg}
 
     def print_patch_dict(name, d):
-        print(f"\n{name} = {{")
+        print(f"\n{name} = " + "{")
         for k in sorted(d.keys()):
             v = d[k]
             l_str = hex(v[0]) if v[0] else "None"
