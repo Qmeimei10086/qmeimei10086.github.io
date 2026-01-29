@@ -1566,7 +1566,7 @@ patch_useless_blocks()
 patch之前记得把retn上面里面很多没用的0x83给nop了，会影响后面ida的cfg  
 然后我们保存patch结果，发现可以正常运行  
 ![CFG8](https://github.com/Qmeimei10086/qmeimei10086.github.io/blob/main/img/2026-1-29-blog-cfg8.png?raw=true "CFG8")
-现在正常多了，不过ida的结果还是怪怪的，不过我们有无敌的ai大人  
+现在正常多了，不过ida的反编译结果还是怪怪的，不过我们有无敌的ai大人  
 ai发现是变异aes
 ```python
 # EzObf1 WriteUp
