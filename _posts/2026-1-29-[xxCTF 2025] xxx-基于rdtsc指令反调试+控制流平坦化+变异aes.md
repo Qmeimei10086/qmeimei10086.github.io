@@ -1,3 +1,17 @@
+---
+layout: post
+title: "2026-1-29-[xxCTF 2025] xxx-基于rdtsc指令反调试+控制流平坦化+变异aes"
+date:       2026-1-29
+author: "Qmeimei10086"
+header-style: text
+tags:
+  - CTF
+  - 逆向
+  - 花指令
+  - 平坦化
+  - 反调试
+  - 混淆
+---
 # 前言
 这题写了快10个小时了，也是挺难的，或许是我太菜了  
 # 定位主函数  
