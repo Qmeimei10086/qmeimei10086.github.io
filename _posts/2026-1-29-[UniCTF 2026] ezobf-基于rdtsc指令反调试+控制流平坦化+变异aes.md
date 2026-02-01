@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "[xxCTF 2026] xxx-基于rdtsc指令反调试+控制流平坦化+变异aes"
+title: "[UniCTF 2026] ezobf-基于rdtsc指令反调试+控制流平坦化+变异aes"
 date:       2026-1-29
 author: "Qmeimei10086"
 header-style: text
