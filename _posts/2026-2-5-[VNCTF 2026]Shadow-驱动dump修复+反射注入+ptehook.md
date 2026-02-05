@@ -229,7 +229,7 @@ FOA=PointerToRawData+(RVA−VirtualAddress)
 ```asm
 FF 15 35 6F FF FF                 call    cs:ExAllocatePool
 ```
-FF 15是通过偏移来找的，也就是当前指令往下偏移35 6F FF FF就是我们的系统函数地址  
+FF 15这种call是通过偏移来找的，也就是当前指令往下偏移35 6F FF FF就是我们的系统函数地址  
 但是我们的ida把程序再次拉伸，倒是落得的地方不是iat的区域，所以就无法是被去查int表  
 其三就是，由于错位，ida也无法正确识别int在哪  
 但是我们PointerToRawData=VirtualAddress，所以foa等于rva，所以现在在文件里的偏移和真实内存中是一样的！  
@@ -389,7 +389,7 @@ P = ExAllocatePoolWithTag(NonPagedPool, 0x862u, 'ENCM')
 //对应汇编
 .text:000000014000138F FF 15 93 3C 00 00                 call    cs:ExAllocatePoolWithTag
 ```
-由于是放射注入，系统里并没有相关符号，我们只能这么下断点  
+由于是反射注入，系统里并没有相关符号，我们只能这么下断点  
 比如就在ExAllocatePoolWithTag这里  
 ffffc10ff2f24000是driverentry，在ida里是  
 ```asm
@@ -506,7 +506,7 @@ ffffc10f`f2f22b20  50 2a f0 f2 0f c1 ff ff-50 2a f0 f2 0f c1 ff ff  P*......P*..
 ffffc10f`f2f22b30  80 60 7e fb 0f c1 ff ff-00 87 c4 f3 0f c1 ff ff  .`~.............
 ```
 rcx的数据就是我们要的密文，r8d是长度    
-接下来东西起了，就可以丢ai了  
+接下来东齐了，就可以丢ai了  
 # 解密
 ai对话
 ```text
