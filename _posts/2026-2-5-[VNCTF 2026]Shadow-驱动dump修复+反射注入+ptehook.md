@@ -19,7 +19,7 @@ tags:
 R3的maze.exe没什么好分析的，真就是一个迷宫，R0的Shadow.sys就比较有意思了，是一个经典的反射注入，这里偷一下liv师傅的图  
 ![ida1](https://github.com/Qmeimei10086/qmeimei10086.github.io/blob/main/img/2026-2-5-blog-ida1.png?raw=true "ida")  
 大概就是经过一轮解密，然后把解密出来的驱动加载进内存里    
-不过我不想熬解密的部分，就选择的dump 
+不过我不想熬解密的部分，就选择的dump  
 我们在修复重定位的地方下断点   
 ```cmd
 kd> sxe ld Shadow.sys
@@ -208,7 +208,7 @@ dump就行
 不错的教程：https://bbs.kanxue.com/thread-274505-1.htm  
 里面的pe_unmapper挺好用的，https://github.com/hasherezade/libpeconv/tree/master/pe_unmapper  
 ![pe1](https://github.com/Qmeimei10086/qmeimei10086.github.io/blob/main/img/2026-2-5-blog-pe1.png?raw=true "pe1")  
-可以看到，pe文件再加载后会像展开一样  
+可以看到，pe文件在加载后会像展开一样  
 这里就有两种方法  
 ```cmd
 pe_unmapper.exe /in D:\dumped.sys 00400000 /out fix.dump
