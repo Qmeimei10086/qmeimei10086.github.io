@@ -253,6 +253,7 @@ FF 15是通过偏移来找的，也就是当前指令往下偏移35 6F FF FF就�
 你可能会好奇KeDelayExecutionThread什么时候被调用，这是关键启动校验输入的核心  
 在maze.exe的迷宫走到尽头的时候，会调用sleep，这里底层就会调用KeDelayExecutionThread，还会传入时间作为参数，在密钥派生时用到  
 # 复现
+  
 ```c
 __int64 __fastcall my_DelayExecutionThread(unsigned __int8 a1, unsigned __int8 a2, _QWORD *arg3)
 {
@@ -333,6 +334,7 @@ __int64 __fastcall my_DelayExecutionThread(unsigned __int8 a1, unsigned __int8 a
   return (qword_140006BB0)(a1, a2, arg3);
 }
 ```
+  
 我们的目标有三  
 1. 拿到加密函数  
 2. 拿到密文  
