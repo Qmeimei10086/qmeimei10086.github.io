@@ -1566,8 +1566,317 @@ patch_useless_blocks()
 patch之前记得把retn上面里面很多没用的0x83给nop了，会影响后面ida的cfg  
 然后我们保存patch结果，发现可以正常运行  
 ![CFG8](https://github.com/Qmeimei10086/qmeimei10086.github.io/blob/main/img/2026-1-29-blog-cfg8.png?raw=true "CFG8")
-现在正常多了，不过ida的反编译结果还是怪怪的，不过我们有无敌的ai大人  
-ai发现是变异aes
+现在正常多了，不过ida的反编译结果还是怪怪的  
+后面发现是有一个垃圾指令0xF3，去掉就行  
+```python
+# -*- coding: utf-8 -*-
+import ida_bytes
+import ida_funcs
+import idc
+import idaapi
+
+def patch_f3_to_nop(func_name):
+    """
+    Looks for the function by name and replaces all 0xF3 bytes with 0x90 (NOP).
+    """
+    # 获取函数地址
+    ea = idc.get_name_ea_simple(func_name)
+    
+    # 如果找不到名字，尝试按照16进制地址解析（去除sub_前缀）
+    if ea == idc.BADADDR:
+        try:
+            raw_addr = func_name.replace("sub_", "").replace("0x", "")
+            ea = int(raw_addr, 16)
+        except ValueError:
+            print(f"[!] 错误: 找不到函数 '{func_name}' 且无法作为地址解析。")
+            return
+
+    # 获取函数对象
+    func = ida_funcs.get_func(ea)
+    if not func:
+        print(f"[!] 错误: 地址 {hex(ea)} 不在任何函数内。")
+        return
+
+    print(f"[*] 正在处理函数: {func_name} (范围: {hex(func.start_ea)} - {hex(func.end_ea)})")
+
+    count = 0
+    current_ea = func.start_ea
+    end_ea = func.end_ea
+
+    # 遍历函数内的每一个字节
+    while current_ea < end_ea:
+        # 读取当前字节
+        b = ida_bytes.get_byte(current_ea)
+        
+        # 检查是否为 F3
+        if b == 0xF3:
+            # 替换为 NOP (0x90)
+            if ida_bytes.patch_byte(current_ea, 0x90):
+                print(f"    -> 在 {hex(current_ea)} 处将 F3 修改为 NOP")
+                count += 1
+            else:
+                print(f"    [!] 在 {hex(current_ea)} 处修改失败")
+        
+        current_ea += 1
+
+    print(f"[*] 完成。共替换了 {count} 个 F3 为 NOP。")
+    
+    # 可选：刷新反汇编视图
+    # ida_kernwin.refresh_idaview_anyway()
+
+if __name__ == "__main__":
+    # 这里指定你要修改的函数名
+    TARGET_FUNCTION = "sub_1400016D0"
+    patch_f3_to_nop(TARGET_FUNCTION)
+
+```
+保存patch重新打开，ida给出的反编译结果是  
+```c
+// local variable allocation has failed, the output may be wrong!
+int __fastcall main(int argc, const char **argv, const char **envp)
+{
+  FILE *Stream; // rax
+  __int64 v4; // rdx
+  char n27; // al
+  char n27_2; // al
+  char n27_3; // al
+  char n27_4; // al
+  _QWORD *v9; // rcx
+  __int64 v10; // rdx
+  __int64 v11; // rax
+  __int64 v12; // rax
+  __int64 v14; // [rsp+20h] [rbp-60h]
+  _BYTE v15[16]; // [rsp+30h] [rbp-50h]
+  _BYTE v16[8]; // [rsp+40h] [rbp-40h] BYREF
+  __int64 v17; // [rsp+48h] [rbp-38h]
+  _DWORD v18[44]; // [rsp+50h] [rbp-30h]
+  unsigned __int8 v19[16]; // [rsp+100h] [rbp+80h]
+  char Buffer[1008]; // [rsp+110h] [rbp+90h] BYREF
+  _QWORD Buf1[129]; // [rsp+500h] [rbp+480h] BYREF
+  __int64 v22; // [rsp+910h] [rbp+890h]
+  int v23; // [rsp+91Ch] [rbp+89Ch]
+  char v24; // [rsp+921h] [rbp+8A1h]
+  char v25; // [rsp+922h] [rbp+8A2h]
+  char v26; // [rsp+923h] [rbp+8A3h]
+  char v27; // [rsp+924h] [rbp+8A4h]
+  char v28; // [rsp+925h] [rbp+8A5h]
+  char v29; // [rsp+926h] [rbp+8A6h]
+  char v30; // [rsp+927h] [rbp+8A7h]
+  char v31; // [rsp+928h] [rbp+8A8h]
+  char v32; // [rsp+929h] [rbp+8A9h]
+  char v33; // [rsp+92Ah] [rbp+8AAh]
+  char v34; // [rsp+92Bh] [rbp+8ABh]
+  char v35; // [rsp+92Ch] [rbp+8ACh]
+  char v36; // [rsp+92Dh] [rbp+8ADh]
+  char n27_1; // [rsp+92Eh] [rbp+8AEh]
+  unsigned __int8 v38; // [rsp+92Fh] [rbp+8AFh]
+  int v39; // [rsp+930h] [rbp+8B0h]
+  unsigned __int8 v40[4]; // [rsp+934h] [rbp+8B4h]
+  unsigned int v41; // [rsp+938h] [rbp+8B8h]
+  int v42; // [rsp+93Ch] [rbp+8BCh]
+  int n32; // [rsp+940h] [rbp+8C0h]
+  int n3_2; // [rsp+944h] [rbp+8C4h]
+  size_t Size; // [rsp+948h] [rbp+8C8h]
+  int n32_1; // [rsp+950h] [rbp+8D0h]
+  int n9; // [rsp+954h] [rbp+8D4h]
+  int n3_1; // [rsp+958h] [rbp+8D8h]
+  int n3; // [rsp+95Ch] [rbp+8DCh]
+
+  sub_140008A67(*(_QWORD *)&argc, argv, envp);
+  Buf1[0] = 0;
+  *(_QWORD *)v19 = 0x706050403020100LL;
+  *(_QWORD *)&v19[8] = 0xF0E0D0C0B0A0908LL;
+  n3 = 0;
+  n3_1 = 0;
+  n9 = 0;
+  n32_1 = 0;
+  Size = 0;
+  n3_2 = 0;
+  n32 = 0;
+  sub_14000A090("input flag: ");
+  Stream = __acrt_iob_func(0);
+  if ( fgets(Buffer, 1000, Stream) )
+  {
+    Size = strlen(Buffer);
+    if ( Size && Buffer[Size - 1] == 10 )
+      Buffer[--Size] = 0;
+    memcpy(Buf1, Buffer, Size);
+    v39 = Size & 0xF;
+    n3_2 = 16 - v39;
+    n32 = Size + 16 - v39;
+    for ( n3 = 0; n3 <= n3_2; ++n3 )
+    {
+      v39 = Size + n3;
+      *((_BYTE *)Buf1 + (unsigned int)(Size + n3)) = n3_2;
+    }
+    for ( n3 = 0; n3 <= 3; ++n3 )
+    {
+      v42 = v19[4 * n3];
+      v42 |= v19[4 * n3 + 1] << 8;
+      v42 |= v19[4 * n3 + 2] << 16;
+      v42 |= v19[4 * n3 + 3] << 24;
+      v18[n3] = v42;
+    }
+    while ( n3 <= 43 )
+    {
+      *(_DWORD *)v40 = v18[n3 - 1];
+      if ( (n3 & 3) == 0 )
+      {
+        v41 = v40[0] << 24;
+        *(_DWORD *)v40 = v41 | (*(_DWORD *)v40 >> 8);
+        v42 = v40[0];
+        v38 = byte_14000C080[v40[0]];
+        v42 = v38;
+        v41 = v40[1];
+        v38 = byte_14000C080[v40[1]];
+        v41 = v38 << 8;
+        v42 |= v41;
+        v41 = v40[2];
+        v38 = byte_14000C080[v40[2]];
+        v41 = v38 << 16;
+        v42 |= v41;
+        v41 = v40[3];
+        v38 = byte_14000C080[v40[3]];
+        v41 = v38 << 24;
+        v42 |= v41;
+        *(_DWORD *)v40 = v42;
+        v39 = n3 / 4 - 1;
+        v41 = dword_14000C180[v39];
+        v42 = (v41 << 8) & 0xFF0000 | (v41 << 24);
+        v42 |= (v41 >> 8) & 0xFF00;
+        v42 |= HIBYTE(v41);
+        *(_DWORD *)v40 ^= v42;
+      }
+      v42 = v18[n3 - 4];
+      v18[n3++] = *(_DWORD *)v40 ^ v42;
+    }
+    for ( n32_1 = 0; n32_1 <= n32; n32_1 += 16 )
+    {
+      v4 = Buf1[n32_1 / 8u + 1];
+      *(_QWORD *)v16 = Buf1[n32_1 / 8u];
+      v17 = v4;
+      for ( n3_1 = 0; n3_1 <= 3; ++n3_1 )
+        *(_DWORD *)&v16[4 * n3_1] ^= v18[n3_1];
+      for ( n9 = 1; n9 <= 10; ++n9 )
+      {
+        for ( n3_1 = 0; n3_1 <= 15; ++n3_1 )
+        {
+          v38 = v16[n3_1];
+          v16[n3_1] = byte_14000C080[v38];
+        }
+        v38 = v16[1];
+        v16[1] = v16[5];
+        v16[5] = BYTE1(v17);
+        BYTE1(v17) = BYTE5(v17);
+        BYTE5(v17) = v38;
+        v38 = v16[2];
+        n27_1 = v16[6];
+        v16[2] = BYTE2(v17);
+        v16[6] = BYTE6(v17);
+        BYTE2(v17) = v38;
+        BYTE6(v17) = n27_1;
+        v38 = HIBYTE(v17);
+        HIBYTE(v17) = BYTE3(v17);
+        BYTE3(v17) = v16[7];
+        v16[7] = v16[3];
+        v16[3] = v38;
+        if ( n9 <= 9 )
+        {
+          for ( n3_1 = 0; n3_1 <= 3; ++n3_1 )
+          {
+            v23 = 4 * n3_1;
+            v35 = v16[4 * n3_1];
+            v34 = v16[4 * n3_1 + 1];
+            v33 = v16[4 * n3_1 + 2];
+            v32 = v16[4 * n3_1 + 3];
+            v38 = 2 * v35;
+            if ( v35 >= 0 )
+              n27 = 0;
+            else
+              n27 = 27;
+            n27_1 = n27;
+            v31 = n27 ^ v38;
+            v38 = 2 * v34;
+            if ( v34 >= 0 )
+              n27_2 = 0;
+            else
+              n27_2 = 27;
+            n27_1 = n27_2;
+            v30 = n27_2 ^ v38;
+            v38 = 2 * v33;
+            if ( v33 >= 0 )
+              n27_3 = 0;
+            else
+              n27_3 = 27;
+            n27_1 = n27_3;
+            v29 = n27_3 ^ v38;
+            v38 = 2 * v32;
+            if ( v32 >= 0 )
+              n27_4 = 0;
+            else
+              n27_4 = 27;
+            n27_1 = n27_4;
+            v28 = n27_4 ^ v38;
+            v27 = v35 ^ v31;
+            v26 = v34 ^ v30;
+            v25 = v33 ^ v29;
+            v24 = v32 ^ n27_4 ^ v38;
+            v36 = v34 ^ v30 ^ v31;
+            v36 ^= v33;
+            v15[v23] = v32 ^ v36;
+            v36 = v25 ^ v30 ^ v35;
+            v15[v23 + 1] = v32 ^ v36;
+            v36 = v29 ^ v34 ^ v35;
+            v15[v23 + 2] = v24 ^ v36;
+            v36 = v33 ^ v34 ^ v27;
+            v15[v23 + 3] = v28 ^ v36;
+          }
+          *(_QWORD *)v16 = *(_QWORD *)v15;
+          v17 = *(_QWORD *)&v15[8];
+        }
+        v38 = v16[1];
+        v16[1] = v16[5];
+        v16[5] = BYTE1(v17);
+        BYTE1(v17) = BYTE5(v17);
+        BYTE5(v17) = v38;
+        v38 = v16[2];
+        n27_1 = v16[6];
+        v16[2] = BYTE2(v17);
+        v16[6] = BYTE6(v17);
+        BYTE2(v17) = v38;
+        BYTE6(v17) = n27_1;
+        v38 = HIBYTE(v17);
+        HIBYTE(v17) = BYTE3(v17);
+        BYTE3(v17) = v16[7];
+        v16[7] = v16[3];
+        v16[3] = v38;
+        for ( n3_1 = 0; n3_1 <= 3; ++n3_1 )
+          *(_DWORD *)&v16[4 * n3_1] ^= v18[4 * n9 + n3_1];
+      }
+      v9 = &Buf1[n32_1 / 8u];
+      v10 = v17;
+      *v9 = *(_QWORD *)v16;
+      v9[1] = v10;
+    }
+    if ( n32 == 32 && !memcmp(Buf1, &Buf2_, 32u) )
+    {
+      puts("right");
+      v12 = v14;
+      LOBYTE(v12) = ~(_BYTE)v14;
+      v22 = v12;
+    }
+    else
+    {
+      puts("wrong");
+      v11 = v14;
+      LOBYTE(v11) = ~(_BYTE)v14;
+      v22 = v11;
+    }
+  }
+  JUMPOUT(0x1400089ACLL);
+}
+```
+ai发现是变异aes   
 ```python
 # EzObf1 WriteUp
 
