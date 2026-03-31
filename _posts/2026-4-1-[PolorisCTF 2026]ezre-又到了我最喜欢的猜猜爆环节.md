@@ -682,7 +682,7 @@ class RelationFinder:
             branch_groups[mnem][src] = (t, f)
             
         for mnem in sorted(branch_groups.keys()):
-            print(f"\nbranch_{mnem} = {{")
+            print("\nbranch_" + mnem + " = {")
             for src, (t, f) in branch_groups[mnem].items():
                 t_str = hex(t) if t is not None else "None"
                 f_str = hex(f) if f is not None else "None"
