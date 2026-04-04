@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      win内核初探2-无Loadlibrary的DLL注射器样本
+title:      win内核初探2-无LoadLibrary的DLL注射器样本
 date:       2026-4-5
 author:     Qmeimei10086
 header-style: text
@@ -667,7 +667,7 @@ int main() {
 		
 }
 ```
-# dll机制
+# DLL机制
 多水一点，加一点ai的回答嘻嘻   
 DLL共享策略  
 ```text
