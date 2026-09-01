@@ -1179,3 +1179,4 @@ VOID  DbgkCreateThread(
 ![img3](https://github.com/Qmeimei10086/qmeimei10086.github.io/blob/main/img/2026-9-1-blog-show2.png?raw=true "img3")  
 经过测试可以调试全版本启动了反调试的vmp   
 项目地址：https://github.com/Qmeimei10086/svm-dbg    
+希望留下你的star，本项目会持续开发哦~
