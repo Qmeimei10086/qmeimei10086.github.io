@@ -1172,7 +1172,7 @@ VOID  DbgkCreateThread(
 ```
 
 # 成品
-因为我的电脑是amd的，而且目前市面上开源svm调试器比较少，所以基于npt hook写了一个  
+因为我的电脑是amd的，而且目前市面上开源svm调试器比较少，所以基于npt hook写了一个   
 效果：  
 ![img2](https://github.com/Qmeimei10086/qmeimei10086.github.io/blob/main/img/2026-9-1-blog-show1.png?raw=true "img2")  
 这是普通调试器  
