@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      DebugPort转移与重建调试体系
+title:      VT调试器原理揭秘--DebugPort转移与重建调试体系
 date:       2026-9-1
 author:     Qmeimei10086
 header-style: text
