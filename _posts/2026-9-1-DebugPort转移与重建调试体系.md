@@ -769,7 +769,7 @@ BOOLEAN  DbgkForwardException(
 此时附加调试就hook完毕  
 # 创建调试重构  
 请先食用：https://qmeimei10086.github.io/2026/08/14/win%E5%86%85%E6%A0%B8%E8%B0%83%E8%AF%95%E5%8E%9F%E7%90%86%E6%8F%AD%E7%A7%985-%E5%88%9B%E5%BB%BA%E8%B0%83%E8%AF%95/  
-
+注意：创建调试hook的都是高频使用函数，请不要使用dbgprint了，而且有概率会在hook时就被pg发现从而蓝屏  
 创建调试顾名思义会创建进程，最终会走到NtCreateUserProcess
 核心流程如下：
 因为太长了，所以我们先完全调用原版创建流程。  
