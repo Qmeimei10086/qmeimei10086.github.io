@@ -33,7 +33,7 @@ DbgkCreateThread就糟糕了，他不是ssdt里的函数，而且创建线程这
 我们在windbg里切换到notpad++的上下文，使用命令u NtCreateFile，竟然第一条时jmp！这不是明显给hook过了  
 但是假如你在hook前提前启动一个cmd，然后装载驱动，然后用cmd启动notpad++，欸嘿，正常打开  
 后来拷打ai发现其原因是：  
-**pml4t具有继承关系，注意我们“在桌面”启动，这时候其实就是explorer启动了notpad++，操作系统为了速度，直接复制了启动者高位的pml4e给他，导致他的也继承了hook了**
+**pml4t具有继承关系，注意我们“在桌面”启动，这时候其实就是explorer启动了notpad++，操作系统为了速度，直接复制了启动者高位的pml4e给他，导致他的也继承了hook了**  
 这太好了，这样子我们的调试器调用NtCreatUserProces创建进程时，也会继承我们的hook  
 于是我拷打ai，烹饪出来成品：  
 # pte-dbg
