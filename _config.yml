@@ -92,6 +92,7 @@ page-mathjax: false
 # Friends
 friends:
   [
-      { title: "Mizuki's Blog", href:         "https://sol.edu.deal" }
+      { title: "Mizuki's Blog", href:         "https://sol.edu.deal" },
+      {title : ＂monopolize's Blog＂, href:"https://monopolize7789.github.io/"
     
   ]
